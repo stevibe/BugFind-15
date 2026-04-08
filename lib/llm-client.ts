@@ -15,6 +15,8 @@ export type GenerationParams = {
   top_p?: number;
   top_k?: number;
   min_p?: number;
+  request_timeout_seconds?: number;
+  signal?: AbortSignal;
 };
 
 const DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS = 30;
@@ -64,7 +66,22 @@ function isTimeoutError(error: unknown): boolean {
   );
 }
 
-function resolveRequestTimeoutMs(): number {
+function isAbortError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === "AbortError";
+}
+
+function resolveRequestTimeoutMs(params?: GenerationParams): number {
+  if (params?.request_timeout_seconds !== undefined) {
+    const requested = Math.trunc(params.request_timeout_seconds);
+    if (Number.isFinite(requested) && requested > 0) {
+      return requested * 1000;
+    }
+  }
+
   const rawTimeout = process.env.MODEL_REQUEST_TIMEOUT_SECONDS?.trim();
 
   if (!rawTimeout) {
@@ -82,7 +99,7 @@ function resolveRequestTimeoutMs(): number {
 
 export async function callModel(model: ModelConfig, messages: ModelMessage[], params?: GenerationParams): Promise<AssistantResponse> {
   const baseUrl = normalizeBaseUrl(model.baseUrl);
-  const requestTimeoutMs = resolveRequestTimeoutMs();
+  const requestTimeoutMs = resolveRequestTimeoutMs(params);
   const headers: Record<string, string> = {
     "Content-Type": "application/json"
   };
@@ -109,24 +126,42 @@ export async function callModel(model: ModelConfig, messages: ModelMessage[], pa
     body.min_p = params.min_p;
   }
 
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), requestTimeoutMs);
+  const parentSignal = params?.signal;
+  const abortController = new AbortController();
+
+  const abortFromParent = () => abortController.abort(parentSignal?.reason);
+  const abortFromTimeout = () => abortController.abort(new DOMException("Request timed out.", "TimeoutError"));
+
+  parentSignal?.addEventListener("abort", abortFromParent, { once: true });
+  timeoutController.signal.addEventListener("abort", abortFromTimeout, { once: true });
+
   let response: Response;
+  let payload: ChatResponse;
 
   try {
     response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(requestTimeoutMs)
+      signal: abortController.signal
     });
+    payload = (await response.json()) as ChatResponse;
   } catch (error) {
+    if (isAbortError(error) && parentSignal?.aborted) {
+      throw new Error("Request aborted.");
+    }
+
     if (isTimeoutError(error)) {
       throw new Error(`Request timed out after ${requestTimeoutMs / 1000}s.`);
     }
 
     throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+    parentSignal?.removeEventListener("abort", abortFromParent);
   }
-
-  const payload = (await response.json()) as ChatResponse;
 
   if (!response.ok) {
     throw new Error(payload.error?.message || `Provider request failed with ${response.status}.`);

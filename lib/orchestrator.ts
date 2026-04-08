@@ -1,7 +1,7 @@
 import { SCENARIOS, scoreModelResults, type ModelScenarioResult, type ScenarioDefinition, type ScenarioState } from "@/lib/benchmark";
 import { callModel, createInitialMessages, type GenerationParams, type ModelMessage } from "@/lib/llm-client";
 import type { ModelConfig } from "@/lib/models";
-import { verifyAnswerInSandbox } from "@/lib/sandbox-client";
+import { verifyAnswerInSandbox, type SandboxValidationOptions } from "@/lib/sandbox-client";
 
 export type RunEvent =
   | {
@@ -41,7 +41,7 @@ export type RunEvent =
       message: string;
     };
 
-type Emit = (event: RunEvent) => Promise<void> | void;
+export type Emit = (event: RunEvent) => Promise<void> | void;
 
 const PROVIDER_ERROR_RETRY_PATTERN = /provider returned error/i;
 const TIMEOUT_RETRY_PATTERN = /request timed out|aborted due to timeout|timeouterror|aborterror/i;
@@ -65,9 +65,21 @@ function resolveScenarios(requestedScenarioIds?: string[]): ScenarioDefinition[]
   return selected;
 }
 
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
+function sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, milliseconds);
+
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new Error("Request aborted."));
+    };
+
+    if (signal) {
+      signal.addEventListener("abort", abort, { once: true });
+    }
   });
 }
 
@@ -131,7 +143,7 @@ async function callModelWithRetry(
           ? `Model request timed out, retrying (${attempt + 1}/${MAX_MODEL_ATTEMPTS})`
           : `Provider returned error, retrying (${attempt + 1}/${MAX_MODEL_ATTEMPTS})`
       });
-      await sleep(750 * attempt);
+      await sleep(750 * attempt, params?.signal);
     }
   }
 
@@ -142,11 +154,16 @@ async function callModelWithRetry(
   return response;
 }
 
-async function runScenarioForModel(
+function isCancellationError(error: unknown): boolean {
+  return error instanceof Error && /request aborted|sandbox request aborted/i.test(error.message);
+}
+
+export async function runScenarioForModel(
   model: ModelConfig,
   scenario: ScenarioDefinition,
   emit: Emit,
-  params?: GenerationParams
+  params?: GenerationParams,
+  validationOptions?: SandboxValidationOptions
 ): Promise<ModelScenarioResult> {
   const state: ScenarioState = {
     assistantMessages: [],
@@ -198,6 +215,10 @@ async function runScenarioForModel(
       break;
     }
   } catch (error) {
+    if (isCancellationError(error)) {
+      throw error;
+    }
+
     const summary = error instanceof Error ? error.message : "Unknown model execution error.";
     traceLines.push(`error=${summary}`);
 
@@ -223,7 +244,10 @@ async function runScenarioForModel(
     message: "Verifying candidate fix in sandbox"
   });
 
-  const sandboxResult = await verifyAnswerInSandbox(scenario.id, state.finalAnswer);
+  const sandboxResult = await verifyAnswerInSandbox(scenario.id, state.finalAnswer, {
+    ...validationOptions,
+    signal: params?.signal
+  });
   state.meta.executionResult = sandboxResult;
   traceLines.push(`sandbox_status=${sandboxResult.status}`);
   traceLines.push(`sandbox_summary=${sandboxResult.summary}`);
@@ -248,7 +272,13 @@ async function runScenarioForModel(
   };
 }
 
-export async function runBenchmark(models: ModelConfig[], emit: Emit, requestedScenarioIds?: string[], params?: GenerationParams): Promise<void> {
+export async function runBenchmark(
+  models: ModelConfig[],
+  emit: Emit,
+  requestedScenarioIds?: string[],
+  params?: GenerationParams,
+  validationOptions?: SandboxValidationOptions
+): Promise<void> {
   const scenarios = resolveScenarios(requestedScenarioIds);
   const resultsByModel: Record<string, ModelScenarioResult[]> = Object.fromEntries(models.map((model) => [model.id, []]));
 
@@ -260,7 +290,7 @@ export async function runBenchmark(models: ModelConfig[], emit: Emit, requestedS
 
   try {
     const runScenario = async (model: ModelConfig, scenario: ScenarioDefinition) => {
-      const result = await runScenarioForModel(model, scenario, emit, params);
+      const result = await runScenarioForModel(model, scenario, emit, params, validationOptions);
       return { modelId: model.id, scenarioId: scenario.id, result };
     };
 

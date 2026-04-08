@@ -7,6 +7,9 @@
     "dev": "node scripts/dev.mjs",
     "benchmark:cli": "node scripts/run-benchmark-cli.mjs",
     "build": "next build",
+    "build:benchlocal": "tsc -p tsconfig.benchlocal.json && tsc-alias -p tsconfig.benchlocal.json",
+    "build:cli": "tsc -p tsconfig.cli.json && tsc-alias -p tsconfig.cli.json",
+    "cli": "npm run build:cli && node dist-cli/cli/run.js",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -17,6 +20,8 @@
     "verify:sandbox:stop": "node scripts/verify-sandbox.mjs stop"
   },
   "dependencies": {
+    "@benchlocal/core": "file:../BenchLocal/packages/benchlocal-core",
+    "@benchlocal/sdk": "file:../BenchLocal/packages/benchlocal-sdk",
     "lucide-react": "^1.7.0",
     "next": "latest",
     "react": "latest",
@@ -28,6 +33,7 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "tsc-alias": "^1.8.10",
     "typescript": "latest"
   }
 }

@@ -9,4 +9,5 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 dist
+dist-cli
 *.tsbuildinfo

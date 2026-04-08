@@ -25,12 +25,25 @@ export type SandboxVerificationResult =
 const DEFAULT_SANDBOX_URL = "http://127.0.0.1:4010";
 const DEFAULT_SANDBOX_TIMEOUT_MS = 20_000;
 
-function resolveSandboxUrl(): string {
-  const raw = process.env.BUGFIND_SANDBOX_URL?.trim() || DEFAULT_SANDBOX_URL;
+export type SandboxValidationOptions = {
+  sandboxUrl?: string;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+};
+
+function resolveSandboxUrl(options?: SandboxValidationOptions): string {
+  const raw = options?.sandboxUrl?.trim() || process.env.BUGFIND_SANDBOX_URL?.trim() || DEFAULT_SANDBOX_URL;
   return raw.replace(/\/+$/, "");
 }
 
-function resolveTimeoutMs(): number {
+function resolveTimeoutMs(options?: SandboxValidationOptions): number {
+  if (options?.timeoutMs !== undefined) {
+    const requested = Math.trunc(options.timeoutMs);
+    if (Number.isFinite(requested) && requested > 0) {
+      return requested;
+    }
+  }
+
   const raw = process.env.BUGFIND_SANDBOX_TIMEOUT_MS?.trim();
 
   if (!raw) {
@@ -41,9 +54,23 @@ function resolveTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_SANDBOX_TIMEOUT_MS;
 }
 
-export async function verifyAnswerInSandbox(scenarioId: string, answer: string): Promise<SandboxVerificationResult> {
-  const sandboxUrl = resolveSandboxUrl();
-  const timeoutMs = resolveTimeoutMs();
+export async function verifyAnswerInSandbox(
+  scenarioId: string,
+  answer: string,
+  options?: SandboxValidationOptions
+): Promise<SandboxVerificationResult> {
+  const sandboxUrl = resolveSandboxUrl(options);
+  const timeoutMs = resolveTimeoutMs(options);
+  const timeoutController = new AbortController();
+  const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const parentSignal = options?.signal;
+  const abortController = new AbortController();
+
+  const abortFromParent = () => abortController.abort(parentSignal?.reason);
+  const abortFromTimeout = () => abortController.abort(new DOMException("Sandbox timed out.", "TimeoutError"));
+
+  parentSignal?.addEventListener("abort", abortFromParent, { once: true });
+  timeoutController.signal.addEventListener("abort", abortFromTimeout, { once: true });
 
   let response: Response;
 
@@ -57,9 +84,13 @@ export async function verifyAnswerInSandbox(scenarioId: string, answer: string):
         scenarioId,
         answer
       }),
-      signal: AbortSignal.timeout(timeoutMs)
+      signal: abortController.signal
     });
   } catch (error) {
+    if (parentSignal?.aborted) {
+      throw new Error("Sandbox request aborted.");
+    }
+
     return {
       status: "skip",
       scenarioId,
@@ -67,6 +98,9 @@ export async function verifyAnswerInSandbox(scenarioId: string, answer: string):
       candidatesTried: 0,
       results: []
     };
+  } finally {
+    clearTimeout(timeoutHandle);
+    parentSignal?.removeEventListener("abort", abortFromParent);
   }
 
   if (!response.ok) {
