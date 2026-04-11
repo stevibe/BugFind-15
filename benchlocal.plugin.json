@@ -3,6 +3,7 @@
   "protocolVersion": 1,
   "id": "bugfind-15",
   "name": "BugFind-15",
+  "author": "Steven Lei",
   "version": "0.1.0",
   "description": "Execution-backed debugging benchmark with verifier-backed scoring across 15 fixed scenarios.",
   "entry": "./dist/benchlocal/index.js",
@@ -13,16 +14,25 @@
     "tools": false,
     "multiTurn": true,
     "streamingProgress": true,
-    "sidecars": true,
+    "verification": true,
     "standaloneWebApp": true
   },
-  "sidecars": [
+  "verifiers": [
     {
       "id": "verifier",
-      "kind": "docker-http",
+      "transport": "http",
       "required": true,
-      "defaultPort": 4010,
-      "healthcheckPath": "/health"
+      "defaultMode": "docker",
+      "docker": {
+        "buildContext": "./verification",
+        "containerPort": 4010,
+        "healthcheckPath": "/health"
+      },
+      "customUrl": {
+        "defaultUrl": "http://127.0.0.1:4010",
+        "healthcheckPath": "/health"
+      },
+      "cloud": {}
     }
   ]
 }

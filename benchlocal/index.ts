@@ -7,7 +7,7 @@ import {
   type ScenarioResult,
   type ScenarioRunInput
 } from "@benchlocal/sdk";
-import { SCENARIOS, scoreModelResults as scoreBugFindResults } from "../lib/benchmark";
+import { SCENARIOS, getScenarioCards, scoreModelResults as scoreBugFindResults } from "../lib/benchmark";
 import { runScenarioForModel } from "../lib/orchestrator";
 
 type ModelConfig = {
@@ -32,16 +32,25 @@ const manifest = definePluginManifest({
     tools: false,
     multiTurn: true,
     streamingProgress: true,
-    sidecars: true,
+    verification: true,
     standaloneWebApp: true
   },
-  sidecars: [
+  verifiers: [
     {
       id: "verifier",
-      kind: "docker-http",
+      transport: "http",
       required: true,
-      defaultPort: 4010,
-      healthcheckPath: "/health"
+      defaultMode: "docker",
+      docker: {
+        buildContext: "./verification",
+        containerPort: 4010,
+        healthcheckPath: "/health"
+      },
+      customUrl: {
+        defaultUrl: "http://127.0.0.1:4010",
+        healthcheckPath: "/health"
+      },
+      cloud: {}
     }
   ]
 });
@@ -63,17 +72,32 @@ export default defineBenchPlugin({
   manifest,
 
   async listScenarios() {
-    return SCENARIOS.map((scenario) => ({
+    return getScenarioCards().map((scenario) => ({
       id: scenario.id,
       title: scenario.title,
       category: scenario.category,
-      description: scenario.description
+      description: scenario.description,
+      promptText: scenario.userMessage,
+      detailCards: [
+        {
+          title: "What this tests",
+          content: scenario.description
+        },
+        {
+          title: "Success case",
+          content: scenario.successCase
+        },
+        {
+          title: "Failure case",
+          content: scenario.failureCase
+        }
+      ]
     }));
   },
 
   async prepare(context) {
     const helpers = createHostHelpers(context);
-    const verifier = helpers.getRequiredSidecar("verifier", {
+    const verifier = helpers.getRequiredVerifier("verifier", {
       runningOnly: true
     });
 
