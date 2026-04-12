@@ -110,9 +110,12 @@ export async function callModel(model: ModelConfig, messages: ModelMessage[], pa
 
   const body: Record<string, unknown> = {
     model: model.model,
-    temperature: params?.temperature ?? 0,
     messages
   };
+
+  if (params?.temperature !== undefined) {
+    body.temperature = params.temperature;
+  }
 
   if (params?.top_p !== undefined) {
     body.top_p = params.top_p;

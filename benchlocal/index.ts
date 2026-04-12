@@ -25,6 +25,9 @@ const manifest = definePluginManifest({
   version: "0.1.0",
   description: "Execution-backed debugging benchmark with verifier-backed scoring across 15 fixed scenarios.",
   entry: "./dist/benchlocal/index.js",
+  samplingDefaults: {
+    temperature: 0
+  },
   theme: {
     accent: "#1f5f78"
   },
