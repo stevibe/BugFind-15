@@ -28,10 +28,6 @@
         "containerPort": 4010,
         "healthcheckPath": "/health"
       },
-      "customUrl": {
-        "defaultUrl": "http://127.0.0.1:4010",
-        "healthcheckPath": "/health"
-      },
       "cloud": {}
     }
   ]
