@@ -2,7 +2,7 @@
 
 ![BugFind-15 screenshot](./screenshot.png)
 
-BugFind-15 is a visual benchmark for comparing how well LLMs identify and fix bugs without hallucinating extra problems. It provides 15 debugging scenarios with live run traces, deterministic rubric scoring, and execution-backed fix verification, all defined by [METHODOLOGY.md](./METHODOLOGY.md).
+BugFind-15 is an official BenchLocal Bench Pack for execution-backed bug finding and fixing. The repo keeps one benchmark core and exposes it through a standalone web app, a BenchLocal adapter, a CLI runner, and a verifier runtime.
 
 ## What It Measures
 
@@ -22,24 +22,31 @@ Each scenario is graded across three axes:
 
 Category E can also apply a multi-turn bonus or penalty when the model asks especially good or bad clarification questions.
 
-## Execution Model
+## Bench Pack Structure
 
-The Docker verifier service is required for real benchmark runs. BugFind-15 is not just a prompt-and-score UI; it depends on native execution to verify the model's submitted fix.
+```text
+app/                    Next.js standalone app
+components/             Standalone UI components
+lib/                    Benchmark core, scoring, transport, and verifier client
+benchlocal/             Thin BenchLocal SDK adapter
+cli/                    Non-UI runner
+verification/           Verifier runtime for exact execution-backed validation
+scripts/                Local helper scripts for verifier development
+benchlocal.pack.json  Static install/discovery manifest
+METHODOLOGY.md          Published benchmark methodology
+```
 
-For every scenario, each model receives:
+## BenchLocal Adapter
 
-1. A shared debugger system prompt.
-2. The scenario's user message and code sample.
-3. For multi-turn scenarios, one scripted clarification only if the model asks a question.
+- `benchlocal/index.ts` is the only place that imports `@benchlocal/sdk`.
+- `lib/` stays framework-agnostic and is shared by the web app, CLI, and BenchLocal.
+- `benchlocal.pack.json` is the canonical Bench Pack metadata manifest used for install, inspection, and runtime metadata.
+- The verifier is declared declaratively; BenchLocal owns lifecycle and host port assignment.
+- The verifier runtime declares its internal `listenPort`; BenchLocal exposes it on a random local host port.
 
-The runner then:
+## Methodology
 
-1. Calls the model through `/chat/completions`.
-2. Records the response trace.
-3. Injects the scripted follow-up when the scenario allows it.
-4. Sends the model's final answer to the verifier sandbox service for exact execution-backed fix checking.
-5. Evaluates identification and discipline with deterministic scenario-specific checks, plus sandbox-backed fix verification.
-6. Streams progress into the dashboard over Server-Sent Events.
+BugFind-15 provides 15 debugging scenarios with live run traces, deterministic rubric scoring, and execution-backed fix verification, all defined by [METHODOLOGY.md](./METHODOLOGY.md).
 
 Official execution verification only uses one exact tagged payload from the model's final answer:
 
@@ -55,116 +62,41 @@ Trap scenarios must instead use:
 <solution language="python|javascript|rust|go" verdict="no_bug"></solution>
 ```
 
-If the final answer omits the tag, uses the wrong language, or uses the wrong verdict, official sandbox verification fails for that scenario.
+## Verifier Runtime
 
-Provider errors and request timeouts are retried up to 3 total attempts with backoff. Model requests time out after 30 seconds by default, and the timeout can be overridden with `MODEL_REQUEST_TIMEOUT_SECONDS` in `.env`.
+BugFind-15 depends on a verifier runtime for authoritative runs.
 
-## Required Verification Sandbox Service
-
-BugFind-15 includes a separate Docker-based verification sandbox service for executing code with real runtimes and compilers. This service is required during benchmark runs because `Fix Quality` depends on execution-backed verification.
+The verifier image includes:
 
 - Python via `python3`
 - JavaScript via `node`
 - Rust via `rustc`
 - Go via pinned `go 1.21`
 
-The canonical runner uses a locked-down container with no network access, a read-only root filesystem, and a temporary writable `/tmp`. The long-running service container uses the same verifier image and runtime limits, but exposes port `4010` so the app server can send model replies to it.
+### BenchLocal Mode
 
-For normal usage, you should have two processes running:
+In BenchLocal, the verifier is host-managed:
 
-1. The verifier sandbox service
-2. The web app
+- BenchLocal builds the image if needed
+- BenchLocal starts and stops the container
+- BenchLocal assigns a free local host port automatically
+- the Bench Pack receives the resolved verifier URL from host context
 
-Start the verifier web service:
+### Standalone App Development
+
+For local standalone development, run the verifier yourself:
 
 ```bash
 npm run verify:sandbox:serve
 ```
 
-If the Docker image does not exist yet, that command builds it automatically before starting the service.
-
-Stop the verifier web service:
+Then run the app:
 
 ```bash
-npm run verify:sandbox:stop
+npm run dev
 ```
 
-Run all canonical scenario checks:
-
-```bash
-npm run verify:canonical
-```
-
-Rebuild the image and run all checks:
-
-```bash
-npm run verify:canonical:rebuild
-```
-
-Run a single scenario or variant:
-
-```bash
-node scripts/verify-sandbox.mjs run --scenario BF-08
-node scripts/verify-sandbox.mjs run --scenario BF-15 --variant fixed
-```
-
-The app server reads the verifier URL from `BUGFIND_SANDBOX_URL` and calls `POST /verify-answer` after each final model reply. If the service is not running, the benchmark cannot perform official fix verification, so the run should be treated as incomplete rather than authoritative. If the service is running but the model does not provide a valid `<solution>` block, the verifier returns a failure rather than inferring a fix.
-
-## Scoring
-
-- Each scenario produces a 0-100 score from the weighted axis rubric in [METHODOLOGY.md](./METHODOLOGY.md).
-- Scenario cells are shown as `pass`, `partial`, or `fail` based on score thresholds.
-- Category scores are averaged per category.
-- The final score is a weighted average of the 5 category scores:
-  - A: 15%
-  - B: 25%
-  - C: 25%
-  - D: 20%
-  - E: 15%
-
-## Supported Providers
-
-BugFind-15 accepts models from five OpenAI-compatible providers:
-
-- `openrouter`
-- `ollama`
-- `llamacpp`
-- `mlx`
-- `lmstudio`
-
-Model configuration uses comma-separated `provider:model` entries.
-
-## Environment Variables
-
-BugFind-15 reads configuration from `.env`. The main variables are:
-
-- `OPENROUTER_API_KEY`
-  Required only if any configured model uses the `openrouter` provider.
-- `OLLAMA_HOST`
-  Base URL for Ollama. Required only if `LLM_MODELS` or `LLM_MODELS_2` contains an `ollama:` model.
-- `LLAMACPP_HOST`
-  Base URL for a `llama.cpp` OpenAI-compatible server. Required only if you use a `llamacpp:` model.
-- `MLX_HOST`
-  Base URL for an `mlx_lm` OpenAI-compatible server. Required only if you use an `mlx:` model.
-- `LMSTUDIO_HOST`
-  Base URL for LM Studio. Required only if you use an `lmstudio:` model.
-- `MODEL_REQUEST_TIMEOUT_SECONDS`
-  Per-request model timeout in seconds. Defaults to `30`. Timeout failures are retried up to 3 total attempts.
-- `BUGFIND_SANDBOX_URL`
-  URL of the required verifier service. Defaults to `http://127.0.0.1:4010`.
-- `BUGFIND_SANDBOX_TIMEOUT_MS`
-  Timeout for requests from the app server to the verifier service, in milliseconds. Defaults to `20000`.
-- `LLM_MODELS`
-  Comma-separated `provider:model` list for the primary benchmark table.
-- `LLM_MODELS_2`
-  Optional second comma-separated `provider:model` list for a secondary table/group in the UI.
-
-Notes:
-
-- Local provider hosts can usually be given as either the raw host or an existing `/v1` endpoint. The app normalizes them to the expected OpenAI-compatible base URL.
-- The verifier service is required for authoritative runs, so `BUGFIND_SANDBOX_URL` should point to a running sandbox instance.
-
-## Getting Started
+## Standalone App
 
 One-time setup:
 
@@ -173,33 +105,19 @@ npm install
 cp .env.example .env
 ```
 
-Then run the two required processes.
-
-Terminal 1:
-
-```bash
-npm run verify:sandbox:serve
-```
-
-Terminal 2:
-
-```bash
-npm run dev
-```
-
 Open `http://localhost:3000`.
 
-Required runtime workflow:
+## BenchLocal and CLI
 
-- terminal 1: `npm run verify:sandbox:serve`
-- terminal 2: `npm run dev`
+- BenchLocal build: `npm run build:benchlocal`
+- CLI runner: `npm run cli`
 
 ## Validation
 
 ```bash
 npm run lint
 npm run typecheck
-npm run build
+npm run build:benchlocal
 npm run verify:canonical
 ```
 

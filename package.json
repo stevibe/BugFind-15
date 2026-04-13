@@ -1,7 +1,7 @@
 {
   "name": "bugfind-15",
-  "version": "0.1.0",
-  "description": "BugFind-15 is a visual benchmark dashboard for evaluating LLM bug-finding performance.",
+  "version": "1.0.0",
+  "description": "Official BenchLocal Bench Pack for execution-backed bug finding and fixing.",
   "license": "MIT",
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -20,8 +20,8 @@
     "verify:sandbox:stop": "node scripts/verify-sandbox.mjs stop"
   },
   "dependencies": {
-    "@benchlocal/core": "file:../BenchLocal/packages/benchlocal-core",
-    "@benchlocal/sdk": "file:../BenchLocal/packages/benchlocal-sdk",
+    "@benchlocal/core": "^0.1.0",
+    "@benchlocal/sdk": "^0.1.0",
     "lucide-react": "^1.7.0",
     "next": "latest",
     "react": "latest",

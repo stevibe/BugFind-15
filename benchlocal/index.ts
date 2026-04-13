@@ -1,7 +1,7 @@
 import {
   createHostHelpers,
-  defineBenchPlugin,
-  definePluginManifest,
+  defineBenchPack,
+  loadBenchPackManifest,
   requireScoredResults,
   type ProgressEmitter,
   type ScenarioResult,
@@ -19,44 +19,7 @@ type ModelConfig = {
   apiKey?: string;
 };
 
-const manifest = definePluginManifest({
-  id: "bugfind-15",
-  name: "BugFind-15",
-  version: "0.1.0",
-  description: "Execution-backed debugging benchmark with verifier-backed scoring across 15 fixed scenarios.",
-  entry: "./dist/benchlocal/index.js",
-  samplingDefaults: {
-    temperature: 0
-  },
-  theme: {
-    accent: "#1f5f78"
-  },
-  capabilities: {
-    tools: false,
-    multiTurn: true,
-    streamingProgress: true,
-    verification: true,
-    standaloneWebApp: true
-  },
-  verifiers: [
-    {
-      id: "verifier",
-      transport: "http",
-      required: true,
-      defaultMode: "docker",
-      docker: {
-        buildContext: "./verification",
-        containerPort: 4010,
-        healthcheckPath: "/health"
-      },
-      customUrl: {
-        defaultUrl: "http://127.0.0.1:4010",
-        healthcheckPath: "/health"
-      },
-      cloud: {}
-    }
-  ]
-});
+const manifest = loadBenchPackManifest(__dirname);
 
 function toModelConfig(input: ScenarioRunInput, baseUrl: string, apiKey?: string): ModelConfig {
   return {
@@ -71,7 +34,7 @@ function toModelConfig(input: ScenarioRunInput, baseUrl: string, apiKey?: string
 
 export { manifest };
 
-export default defineBenchPlugin({
+export default defineBenchPack({
   manifest,
 
   async listScenarios() {
