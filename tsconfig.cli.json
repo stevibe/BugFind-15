@@ -6,20 +6,9 @@
     "rootDir": ".",
     "module": "CommonJS",
     "moduleResolution": "Node",
-    "lib": [
-      "es2022",
-      "dom"
-    ],
-    "jsx": "react-jsx",
     "incremental": false,
     "tsBuildInfoFile": "./tsconfig.cli.tsbuildinfo"
   },
-  "include": [
-    "cli/**/*.ts",
-    "lib/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    ".next"
-  ]
+  "include": ["cli/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["node_modules", "dist-cli", ".next"]
 }

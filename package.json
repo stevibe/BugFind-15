@@ -4,14 +4,9 @@
   "description": "Official BenchLocal Bench Pack for execution-backed bug finding and fixing.",
   "license": "MIT",
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "benchmark:cli": "node scripts/run-benchmark-cli.mjs",
-    "build": "next build",
     "build:benchlocal": "tsc -p tsconfig.benchlocal.json && tsc-alias -p tsconfig.benchlocal.json",
     "build:cli": "tsc -p tsconfig.cli.json && tsc-alias -p tsconfig.cli.json",
     "cli": "npm run build:cli && node dist-cli/cli/run.js",
-    "start": "next start",
-    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "verify:sandbox:build": "node scripts/verify-sandbox.mjs build",
     "verify:canonical": "node scripts/verify-sandbox.mjs run",
@@ -21,18 +16,10 @@
   },
   "dependencies": {
     "@benchlocal/core": "^0.1.0",
-    "@benchlocal/sdk": "^0.1.0",
-    "lucide-react": "^1.7.0",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "@benchlocal/sdk": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "eslint-config-next": "latest",
     "tsc-alias": "^1.8.10",
     "typescript": "latest"
   }

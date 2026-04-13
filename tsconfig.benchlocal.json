@@ -1,23 +1,14 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "es2022"],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": false,
-    "jsx": "react-jsx",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"]
-    },
+    "noEmit": false,
+    "outDir": "./dist",
     "rootDir": ".",
-    "outDir": "dist"
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "incremental": false,
+    "tsBuildInfoFile": "./tsconfig.benchlocal.tsbuildinfo"
   },
   "include": ["lib/**/*.ts", "benchlocal/**/*.ts"],
-  "exclude": ["node_modules", "dist", "app", "components"]
+  "exclude": ["node_modules", "dist"]
 }
