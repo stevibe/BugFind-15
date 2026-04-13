@@ -1,4 +1,9 @@
 # BugFind-15
+
+`main` now tracks the maintained Bench Pack version of BugFind-15 for BenchLocal.
+
+If you need the older standalone web app implementation, use the [`legacy/web-app`](https://github.com/stevibe/BugFind-15/tree/legacy/web-app) branch. That branch is preserved for compatibility, but BenchLocal is now the recommended way to run BugFind-15 because it provides a unified experience for providers, models, verifier lifecycle, workspaces, histories, and the broader Bench Pack suite.
+
 BugFind-15 is an official BenchLocal Bench Pack for deterministic execution-backed bug finding and fixing. The repo keeps one benchmark core and exposes it through a BenchLocal adapter, a CLI runner, and a verifier runtime.
 
 ## What It Measures
