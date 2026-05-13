@@ -1,6 +1,6 @@
 {
   "name": "bugfind-15",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official BenchLocal Bench Pack for execution-backed bug finding and fixing.",
   "license": "MIT",
   "scripts": {
