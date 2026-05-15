@@ -1,10 +1,18 @@
 # BugFind-15
 
-`main` now tracks the maintained Bench Pack version of BugFind-15 for BenchLocal.
+BugFind-15 is an official [BenchLocal](https://github.com/stevibe/BenchLocal) Bench Pack for deterministic, execution-backed bug finding and fixing. It measures whether a model can identify real defects, produce disciplined fixes, and avoid changing code when a scenario is intentionally a trap.
 
-If you need the older standalone web app implementation, use the [`legacy/web-app`](https://github.com/stevibe/BugFind-15/tree/legacy/web-app) branch. That branch is preserved for compatibility, but BenchLocal is now the recommended way to run BugFind-15 because it provides a unified experience for providers, models, verifier lifecycle, workspaces, histories, and the broader Bench Pack suite.
+A Bench Pack is an installable benchmark package that runs inside the [BenchLocal desktop app](https://github.com/stevibe/BenchLocal). BenchLocal provides the shared app experience for provider setup, model selection, verifier lifecycle, sampling controls, run histories, and side-by-side comparison across benchmark packs.
 
-BugFind-15 is an official BenchLocal Bench Pack for deterministic execution-backed bug finding and fixing. The repo keeps one benchmark core and exposes it through a BenchLocal adapter, a CLI runner, and a verifier runtime.
+This repository contains the benchmark source: debugging scenarios, scoring logic, methodology, a BenchLocal adapter, a CLI runner, and a verifier runtime for exact execution-backed validation. `main` tracks the maintained Bench Pack version for BenchLocal.
+
+If you need the older standalone web app implementation, use the [`legacy/web-app`](https://github.com/stevibe/BugFind-15/tree/legacy/web-app) branch. That branch is preserved for compatibility, but BenchLocal is now the recommended way to run BugFind-15.
+
+## Run With BenchLocal
+
+1. Download BenchLocal from the [latest BenchLocal release](https://github.com/stevibe/BenchLocal/releases/latest).
+2. Open BenchLocal and install BugFind-15 from the official Bench Pack registry.
+3. Add one or more models, select BugFind-15, and start a run.
 
 ## What It Measures
 
