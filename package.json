@@ -7,6 +7,7 @@
     "build:benchlocal": "tsc -p tsconfig.benchlocal.json && tsc-alias -p tsconfig.benchlocal.json",
     "build:cli": "tsc -p tsconfig.cli.json && tsc-alias -p tsconfig.cli.json",
     "cli": "npm run build:cli && node dist-cli/cli/run.js",
+    "test": "npm run build:benchlocal && node --test dist/**/*.test.js",
     "typecheck": "tsc --noEmit",
     "verify:sandbox:build": "node scripts/verify-sandbox.mjs build",
     "verify:canonical": "node scripts/verify-sandbox.mjs run",
