@@ -48,7 +48,11 @@ const CATEGORY_WEIGHTS = {
     E: 15
 };
 function normalize(value) {
-    return value.trim().toLowerCase();
+    return value
+        .replace(/[`*_]+/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
 }
 function includesAny(text, needles) {
     const source = normalize(text);
@@ -235,7 +239,17 @@ exports.SCENARIOS = [
         failureCase: "Miss the off-by-one, or fix it with an unnecessary rewrite that avoids explaining what is actually wrong.",
         evaluate(state) {
             const answer = combinedAssistantText(state);
-            const identifiesBug = includesAny(answer, ["off-by-one", "range(1", "len(numbers) + 1", "starts at 1", "index 3", "out of bounds"]) ||
+            const identifiesBug = includesAny(answer, [
+                "off-by-one",
+                "range(1",
+                "len(numbers) + 1",
+                "starts at 1",
+                "index 3",
+                "out of bounds",
+                "out of range",
+                "goes through len(numbers)",
+                "numbers[len(numbers)]"
+            ]) ||
                 matchesAny(answer, [/skip.*first/i, /index\s*0/i]);
             const minimalFix = includesAny(answer, ["range(len(numbers))", "for num in numbers", "start from 0"]) ||
                 matchesAny(answer, [/for\s+\w+\s+in\s+numbers/i]);
@@ -286,8 +300,16 @@ exports.SCENARIOS = [
         evaluate(state) {
             const answer = stripInlineCode(combinedAssistantText(state));
             const identifiesTrap = mentionsNoBug(answer) ||
-                includesAny(answer, ["format! borrows", "does not move", "compiles fine"]) ||
-                matchesAny(answer, [/format!.*borrows/i, /compiles\s+(?:and\s+runs|successfully)/i]);
+                includesAny(answer, [
+                    "format! borrows",
+                    "does not move",
+                    "compiles fine",
+                    "compile as-is",
+                    "compiles as-is",
+                    "should compile",
+                    "formatting macros borrow"
+                ]) ||
+                matchesAny(answer, [/format!.*borrows?/i, /formatting macros? borrow/i, /compiles?\s+(?:as-is|and\s+runs|successfully)/i]);
             const asksForRealCode = includesAny(answer, ["double-check", "actual error", "real code", "different code"]);
             const falsePositive = suggestsUnnecessaryTrapFix(answer);
             const axes = {
@@ -310,7 +332,15 @@ exports.SCENARIOS = [
         failureCase: "Wrap the deletion in `try/except` or avoid explaining why the dictionary view is the problem.",
         evaluate(state) {
             const answer = combinedAssistantText(state);
-            const identifiesBug = includesAny(answer, ["dictionary changed size", "modify a dictionary while iterating", "mutating the dictionary", "during iteration"]);
+            const identifiesBug = includesAny(answer, [
+                "dictionary changed size",
+                "modify a dictionary while iterating",
+                "modifying the size of a dictionary while iterating",
+                "mutating the dictionary",
+                "during iteration",
+                "dictionary shrinks",
+                "deleting entries while iterating"
+            ]);
             const goodFix = includesAny(answer, ["list(users.items())", "dict comprehension", "to_remove", "collect", "return {"]) ||
                 matchesAny(answer, [/for .* in .*to_remove/i]);
             const badFix = includesAny(answer, ["try/except"]);
